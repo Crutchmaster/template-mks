@@ -54,10 +54,7 @@ public class Commands {
 
     @MQCommand
     public String getCommands() {
-        String cmds = "";
-        for (String s : mks.getCommands()) cmds += "\""+s+"\",";
-        cmds = cmds.substring(0, cmds.length() - 1);
-        return "{\"commands\":["+cmds+"]}";
+        return mks.getCommands();
     }
 
     @MQCommand

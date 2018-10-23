@@ -5,11 +5,12 @@ import java.io.StringWriter;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Set;
 import java.util.Vector;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class MksControl {
 
@@ -63,8 +64,12 @@ public class MksControl {
         }
     }
 
-    public Set<String> getCommandList() {
-        return commandsList.keySet();
+    public String getCommandList() {
+        ObjectNode obj =  om.createObjectNode();
+        ArrayNode arr = om.createArrayNode();
+        for (String s : commandsList.keySet()) arr.add(s);
+        obj.putArray("commands").addAll(arr);
+        return obj.toString();
     }
 
     public String parseError(int index, String value, String asWhat) {
