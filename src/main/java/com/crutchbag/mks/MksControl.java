@@ -69,13 +69,13 @@ public class MksControl {
     public HashMap<String, Call> getCommandsHashMap() {
         return commandsHashMap;
     }
-        
-    public String getCommandsList() {    	
-    	List<Command> cmdlist = new ArrayList<>();
-    	for (HashMap.Entry<String, Call> entry : commandsHashMap.entrySet()) {
-    		cmdlist.add(new Command(entry.getKey(), null));
-    	}
-    	return Helper.commandListToJSON(cmdlist);
+
+    public String getCommandsList() {
+          ObjectNode obj =  om.createObjectNode();
+          ArrayNode arr = om.createArrayNode();
+          for (String s : commandsHashMap.keySet()) arr.add(s);
+          obj.putArray("commands").addAll(arr);
+          return obj.toString();
     }
     
     public String getCommandArgs(String cmd) {    	
