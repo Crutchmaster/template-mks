@@ -12,6 +12,8 @@ import java.util.Vector;
 import com.crutchbag.mks.Helper.Command;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class MksControl {
 
@@ -64,7 +66,7 @@ public class MksControl {
             }
         }
     }
-    
+
     //leaving this here for future use (if any)
     public HashMap<String, Call> getCommandsHashMap() {
         return commandsHashMap;
@@ -77,8 +79,8 @@ public class MksControl {
           obj.putArray("commands").addAll(arr);
           return obj.toString();
     }
-    
-    public String getCommandArgs(String cmd) {    	
+
+    public String getCommandArgs(String cmd) {
     	if (commandsHashMap.containsKey(cmd)) {
     		List<String> s = new ArrayList<>();
     		Call c = commandsHashMap.get(cmd);
@@ -91,8 +93,27 @@ public class MksControl {
     		return "Command not found.";
     	}
     }
-    
+
     public String getCommandsWithArgs() {
+        //Вариант с jackson без объектов/хелперов и т.п.
+        //Можно было сделать просто om.writeValueAsString c List<Map<String, <List<String>>>> но у нас там
+        //{"command":"test2","args":["String","String"] поэтому не вариант
+        //Можно конечно, сделать [{"test2":["String","String"]},...] но ...:)
+
+        ArrayNode ret = om.createArrayNode();
+        for (HashMap.Entry<String, Call> entry : commandsHashMap.entrySet()) {
+            ArrayNode argsArray = om.createArrayNode();
+            for (Parameter param : entry.getValue().method.getParameters()) {
+                argsArray.add(param.getType().getSimpleName());
+            }
+            ObjectNode obj = om.createObjectNode();
+            obj.put("command", entry.getKey())
+               .putPOJO("args", argsArray); //тут почему-то put для самих объектов jackson deprecated. Зачем они так делают...
+            ret.add(obj);
+        }
+        return ret.toString();
+
+        /*
     	List<Command> cmdlist = new ArrayList<>();
     	for (HashMap.Entry<String, Call> entry : commandsHashMap.entrySet()) {
     		if (entry.getValue().method.getParameterCount() == 0) {
@@ -104,8 +125,9 @@ public class MksControl {
     		}
     	}
     	return Helper.commandListToJSON(cmdlist);
+    	*/
     }
-    
+
     public String parseError(int index, String value, String asWhat) {
         return "Parameter #"+index+" value '"+value+"' won't parsed as "+asWhat+"\n";
     }
@@ -119,7 +141,7 @@ public class MksControl {
      *		}
      *	]
      * }
-     * 
+     *
      * example: {"command" : [{"name" : "test3", "args" : ["1", "1.5", "true"]}]}
      * shortest example: {"command" : [{ "name" : "ping" }]}
      */
