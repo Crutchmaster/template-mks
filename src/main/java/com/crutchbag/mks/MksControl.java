@@ -3,11 +3,13 @@ package com.crutchbag.mks;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Set;
+import java.util.List;
 import java.util.Vector;
 
+import com.crutchbag.mks.Helper.Command;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -44,12 +46,12 @@ public class MksControl {
     }
 
     private CommandReturn ret = new CommandReturn();
-    private HashMap<String, Call> commandsList;
+    private HashMap<String, Call> commandsHashMap;
     private ArrayList<Arg> argList;
     private ObjectMapper om = new ObjectMapper();
 
     public MksControl() {
-        commandsList = new HashMap<String, Call>();
+        commandsHashMap = new HashMap<String, Call>();
         argList = new ArrayList<Arg>(10);
         for (int i = 0; i < 10; i++) argList.add(new Arg());
     }
@@ -58,19 +60,69 @@ public class MksControl {
         Method[] ms = tp.getClass().getMethods();
         for (Method m : ms) {
             if (m.isAnnotationPresent(MQCommand.class)) {
-                commandsList.put(m.getName(), new Call(tp, m));
+                commandsHashMap.put(m.getName(), new Call(tp, m));
             }
         }
     }
-
-    public Set<String> getCommandList() {
-        return commandsList.keySet();
+    
+    //leaving this here for future use (if any)
+    public HashMap<String, Call> getCommandsHashMap() {
+        return commandsHashMap;
     }
-
+        
+    public String getCommandsList() {    	
+    	List<Command> cmdlist = new ArrayList<>();
+    	for (HashMap.Entry<String, Call> entry : commandsHashMap.entrySet()) {
+    		cmdlist.add(new Command(entry.getKey(), null));
+    	}
+    	return Helper.commandListToJSON(cmdlist);
+    }
+    
+    public String getCommandArgs(String cmd) {    	
+    	if (commandsHashMap.containsKey(cmd)) {
+    		List<String> s = new ArrayList<>();
+    		Call c = commandsHashMap.get(cmd);
+    		for (Parameter param : c.method.getParameters()) {
+    			s.add(param.getType().getSimpleName());
+    		}
+    		Command command = new Command(cmd, s);
+    		return Helper.commandToJSON(command);
+    	} else {
+    		return "Command not found.";
+    	}
+    }
+    
+    public String getCommandsWithArgs() {
+    	List<Command> cmdlist = new ArrayList<>();
+    	for (HashMap.Entry<String, Call> entry : commandsHashMap.entrySet()) {
+    		if (entry.getValue().method.getParameterCount() == 0) {
+    			cmdlist.add(new Command(entry.getKey(), null));
+    		} else {
+    			List<String> ls = new ArrayList<>();
+    			for (Parameter param : entry.getValue().method.getParameters()) ls.add(param.getType().getSimpleName());
+    			cmdlist.add(new Command(entry.getKey(), ls));
+    		}
+    	}
+    	return Helper.commandListToJSON(cmdlist);
+    }
+    
     public String parseError(int index, String value, String asWhat) {
         return "Parameter #"+index+" value '"+value+"' won't parsed as "+asWhat+"\n";
     }
 
+    /**TODO parse incoming JSON assuming that all we need to process is
+     * {
+     * 	"type" :[								\\ e.g. "command"
+     *		{
+     *		 "name" : "linkToMethod",
+     *		 "args" : "parameter array"
+     *		}
+     *	]
+     * }
+     * 
+     * example: {"command" : [{"name" : "test3", "args" : ["1", "1.5", "true"]}]}
+     * shortest example: {"command" : [{ "name" : "ping" }]}
+     */
     public CommandReturn control(String msg) {
         String commandStr = null;
         ArrayList<String> args = new ArrayList<String>(10);
@@ -87,7 +139,7 @@ public class MksControl {
             return ret.err("Json parsing error. Json is:"+msg);
         }
 
-        Call c = commandsList.get(commandStr);
+        Call c = commandsHashMap.get(commandStr);
         if (c == null) return ret.err("Command not found:"+commandStr);
 
         int cnt = c.method.getParameterCount();
