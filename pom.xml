@@ -3,13 +3,13 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.ric</groupId>
+	<groupId>com.crutchbag</groupId>
 	<artifactId>mks-template</artifactId>
-	<version>0.1.0</version>
+	<version>0.2.0</version>
 	<packaging>jar</packaging>
 
 	<name>mks-template</name>
-	<description>RIC microservice template</description>
+	<description>Microservice template</description>
 
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -36,14 +36,6 @@
         </dependency>
     </dependencies>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-			</plugin>
-		</plugins>
-	</build>
 
 
 </project>
