@@ -12,6 +12,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 @Component
 public class Mks {
 
@@ -20,7 +24,11 @@ public class Mks {
     private String logQueueName;
     private String controlQueueIn;
     private String outQueueName;
+    private ObjectMapper json = new ObjectMapper();
     //private HashMap<String, Object> args;
+    private final String LOG_SUFFIX = "_log";
+    private final String IN_SUFFIX = "_control";
+    private final String OUT_SUFFIX = "_out";
 
     @Autowired
     private RabbitTemplate amqp;
@@ -45,10 +53,10 @@ public class Mks {
 
     public Mks(@Value("${name}") String appName) {
         this.name = appName;
-        this.logQueueName = appName + "_log";
-        this.controlQueueIn = appName + "_control";
-        this.outQueueName = appName + "_out";
-        this.mksControl = new MksControl();
+        this.logQueueName = appName + LOG_SUFFIX;
+        this.controlQueueIn = appName + IN_SUFFIX;
+        this.outQueueName = appName + OUT_SUFFIX;
+        this.mksControl = new MksControl(this);
         //args = new HashMap<String, Object>();
         //args.put("x-max-length-bytes", new Integer(1024*1024*16)); //16MB
         Commands cmds = new Commands(this);
@@ -63,10 +71,16 @@ public class Mks {
         amqp.convertAndSend(outQueueName, str);
     }
 
+    public String sendAndReceive(String appName, String cmdName, Object... args) {
+        ObjectNode msg = json.createObjectNode();
+        ArrayNode arr = msg.putArray(cmdName);
+        for (Object arg : args) arr.add(arg.toString());
+        return sendAndReceive(appName + IN_SUFFIX, msg.toString());
+    }
+
     public String sendAndReceive(String queue, String str) {
         Message msg = new Message(str.getBytes(), new MessageProperties());
         return new String(amqp.sendAndReceive(queue, msg).getBody());
-        //return "ok";
     }
 
     //public String getId() {return id;}

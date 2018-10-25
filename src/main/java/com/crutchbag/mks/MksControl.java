@@ -3,9 +3,11 @@ package com.crutchbag.mks;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Vector;
+import java.util.List;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,37 +24,39 @@ public class MksControl {
         }
     }
 
-    public class Arg {
-        public String stringValue;
-        public Integer intValue;
-        public Boolean boolValue;
-        public Double floatValue;
-        public Arg() {
-            this.clear();
+    public class Pair<A, B> {
+        public A a;
+        public B b;
+        public Pair(A a, B b) {
+            this.a = a; this.b = b;
         }
-        public void clear() {
-            stringValue = null;
-            intValue = null;
-            boolValue = null;
-            floatValue = null;
-        }
-        public void set(String s, Integer i, Boolean b, Double d) {
-            stringValue = s;
-            intValue = i;
-            boolValue = b;
-            floatValue = d;
+        public Pair<A, B> set(A pa, B pb) {
+            a = pa;
+            b = pb;
+            return this;
         }
     }
 
     private CommandReturn ret = new CommandReturn();
     private HashMap<String, Call> commandsList;
-    private ArrayList<Arg> argList;
+    private HashMap<String, String> argMap;
     private ObjectMapper om = new ObjectMapper();
+    private Mks mks;
 
-    public MksControl() {
+
+    public MksControl(Mks mks) {
+        this.mks = mks;
         commandsList = new HashMap<String, Call>();
-        argList = new ArrayList<Arg>(10);
-        for (int i = 0; i < 10; i++) argList.add(new Arg());
+        argMap = new HashMap<String, String>();
+        argMap.put("java.lang.Integer", "int");
+        argMap.put("int", "int");
+        argMap.put("long", "int");
+        argMap.put("java.lang.String", "string");
+        argMap.put("java.lang.Double", "float");
+        argMap.put("float", "float");
+        argMap.put("double", "float");
+        argMap.put("java.lang.Boolean", "bool");
+        argMap.put("boolean", "bool");
     }
 
     public void feed(Object tp) {
@@ -72,95 +76,124 @@ public class MksControl {
         return obj.toString();
     }
 
-    public String parseError(int index, String value, String asWhat) {
-        return "Parameter #"+index+" value '"+value+"' won't parsed as "+asWhat+"\n";
-    }
-
     public CommandReturn control(String msg) {
         String commandStr = null;
-        ArrayList<String> args = new ArrayList<String>(10);
+        //ArrayList<String> args = new ArrayList<String>(10);
+        ArrayNode args = null;
         Object retObj = "";
         try {
             JsonNode in = om.readTree(msg);
+            JsonNode cmdArgs;
             commandStr = in.fieldNames().next();
-            if (in.get(commandStr).isArray()) {
-                for(JsonNode arg : in.get(commandStr)) {
-                    args.add(arg.asText());
-                }
+            if ((cmdArgs = in.get(commandStr)).isArray()) {
+                args = (ArrayNode)cmdArgs;
+            } else {
+                ret.err("Json parsing error. No array after command key.\n"
+                      + "I want {\"commandName\" : [\"arg\", 1, 0.5,[...]}\n"
+                      + "Input message is:"+msg+"\n");
             }
         } catch (Exception e) {
-            return ret.err("Json parsing error. Json is:"+msg);
+            return ret.err("Json parsing error. "
+                    + "I want {\"commandName\" : [\"arg\", 1, 0.5,[...]}\n"
+                    + "Json is:"+msg);
         }
 
         Call c = commandsList.get(commandStr);
         if (c == null) return ret.err("Command not found:"+commandStr);
-
-        int cnt = c.method.getParameterCount();
-        if (cnt <= args.size()) {
-            Arg arg;
-            for (int i = 0; i < cnt; i++) {
-                String ps = args.get(i);
-                Integer pi = null;
-                Double pd = null;
-                try {pi = Integer.parseInt(ps);} catch (Exception e) {};
-                try {pd = Double.parseDouble(ps);} catch (Exception e) {};
-
-                arg = argList.get(i);
-                arg.clear();
-                arg.boolValue = Boolean.parseBoolean(ps);
-                arg.stringValue = ps;
-                arg.intValue = pi;
-                arg.floatValue = pd;
+        Pair<List<Object>, String> argsRet = buildArgs(c.method, args);
+        if (argsRet.a != null) {
+            try {
+                retObj = c.method.invoke(c.object, argsRet.a.toArray());
+            } catch (Exception e) {
+                StringWriter errors = new StringWriter();
+                e.printStackTrace(new PrintWriter(errors));
+                String trace = errors.toString();
+                return ret.err("Error when calling " + commandStr + ":"
+                        + e.getClass().getName() + " - " + e.getMessage()
+                        + "\nStackTrace:\n" + trace);
             }
-
-            boolean error = false;
-            String errStr = "";
-            Vector<Object> sendArgs = new Vector<Object>();
-            Class<?>[] types = c.method.getParameterTypes();
-            int parIndex = 0;
-            for (Class<?> t : types) {
-                arg = argList.get(parIndex);
-                if (t.equals(String.class)) {
-                    sendArgs.add(arg.stringValue);
-                } else if (t.equals(Boolean.class) || t.getName().equals("boolean")) {
-                    sendArgs.add(arg.boolValue);
-                } else if (t.equals(Integer.class) ||
-                        t.getName().equals("int") || t.getName().equals("long")) {
-                    if (arg.intValue != null) {
-                        sendArgs.add(arg.intValue);
-                    } else {
-                        error = true;
-                        errStr += parseError(parIndex, arg.stringValue, "integer");
-                    }
-                } else if (t.equals(Double.class) ||
-                        t.getName().equals("float") || t.getName().equals("double")) {
-                    if (arg.floatValue != null) {
-                        sendArgs.add(arg.floatValue);
-                    } else {
-                        error = true;
-                        errStr += parseError(parIndex, arg.stringValue, "double");
-                    }
-                }
-                parIndex++;
-            }
-
-            ret.err(errStr);
-            if (!error) {
-                try {
-                    retObj = c.method.invoke(c.object, sendArgs.toArray());
-                } catch (Exception e) {
-                    StringWriter errors = new StringWriter();
-                    e.printStackTrace(new PrintWriter(errors));
-                    String trace = errors.toString();
-                    return ret.err("Error when calling " + commandStr + ":"
-                            + e.getClass().getName() + " - " + e.getMessage()
-                            + "\nStackTrace:\n" + trace);
-                }
-                return ret.ok(retObj.toString());
-            }
-            return ret;
+            return ret.ok(retObj.toString());
         }
-        return ret.err("Need more args for "+commandStr+"("+cnt+" vs "+args.size()+")");
+        return ret.err(argsRet.b);
+    }
+
+    private Pair<List<Object>, String> buildArgs(Method m, ArrayNode args) {
+        Pair<List<Object>, String> rt = new Pair<List<Object>, String>(new ArrayList<Object>(), "");
+        int cnt = m.getParameterCount();
+        if (cnt < args.size()) {
+            return rt.set(null, String.format("Need more args (%d vs %d)", cnt, args.size()));
+        }
+        Class<?>[] types = m.getParameterTypes();
+        int i = 0;
+        String typeName = "";
+        Pair<Object, String> rs;
+        for (Class<?> t : types) {
+            JsonNode arg = args.get(i);
+            if (t.isAssignableFrom(List.class)) {
+                if (!arg.isArray()) {
+                    return rt.set(null, String.format("Argument #%d is array, but input argument is not array.\n"
+                            + "Input argument:", i, arg.toString()));
+                }
+                ParameterizedType pt = (ParameterizedType)m.getGenericParameterTypes()[i];
+                Type[] parTypes = pt.getActualTypeArguments();
+                if (parTypes.length != 1) {
+                    return rt.set(null,
+                            String.format("Argument #%d: only one generic type allowed\n. Type is %s",
+                                    i, pt.getTypeName()));
+                }
+                typeName = parTypes[0].getTypeName();
+                List<Object> parArray = new ArrayList<Object>();
+                for (JsonNode e : (ArrayNode)arg) {
+                    rs = parseArg(typeName, e);
+                    if (rs.a == null) return rt.set(null, String.format("Argument #%d %s", i, rs.b));
+                    parArray.add(rs.a);
+                }
+                rt.a.add(parArray);
+            } else {
+                typeName = t.getName();
+                rs = parseArg(typeName, arg);
+                if (rs.a == null) return rt.set(null, String.format("Argument #%d %s", i, rs.b));
+                rt.a.add(rs.a);
+            }
+            i++;
+        }
+        return rt;
+    }
+
+    private Pair<Object, String> parseArg(String type, JsonNode arg) {
+        Object retObj = null;
+        Pair<Object, String> rt = new Pair<Object, String>(retObj, "");
+        if (arg.isArray() || arg.isObject()) {
+            return rt.set(null,
+                    String.format(" input argument for %s is object or array\nInput argument:%s"
+                            ,type,arg.toString()));
+        }
+        String parseMethod = argMap.get(type);
+        if (parseMethod == null) return rt.set(null, "no parser for class of "+type);
+        String str = arg.asText();
+        switch (parseMethod) {
+        case "string" :
+            rt.a = str;
+            break;
+        case "bool":
+            rt.a = arg.asBoolean();
+            break;
+        case "float" :
+            try {rt.a = Double.valueOf(str);}
+            catch (Exception e) {
+                return rt.set(null, String.format(" parse error for type %s\nInput argument:%s",type,str));
+            }
+            break;
+        case "int" :
+            try {rt.a = Integer.valueOf(str);}
+            catch (Exception e) {
+                return rt.set(null, String.format(" parse error for type %s\nInput argument:%s",type,str));
+            }
+            break;
+        default :
+            return rt.set(null, String.format(" parse method %s for %s is not implemented.", parseMethod, type));
+        }
+        return rt;
     }
 
 }

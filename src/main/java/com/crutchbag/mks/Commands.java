@@ -1,5 +1,7 @@
 package com.crutchbag.mks;
 
+import java.util.List;
+
 public class Commands {
 
     private Mks mks;
@@ -40,6 +42,13 @@ public class Commands {
     @MQCommand
     public String test3(Integer a, Double b, Boolean c) {
         return "Run test3: arg1:"+a+" arg2:"+b+" arg3:"+c;
+    }
+
+    @MQCommand
+    public String testList(List<String> t) {
+        String str = "";
+        for (String s : t) {str += s + ";";}
+        return "Run testList: arg:"+str;
     }
 
     @MQCommand
