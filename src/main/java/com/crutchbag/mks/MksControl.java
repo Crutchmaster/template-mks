@@ -59,6 +59,8 @@ public class MksControl {
         argMap.put("boolean", "bool");
     }
 
+    private String fmt(String f, Object... x) {return String.format(f, x);}
+
     public void feed(Object tp) {
         Method[] ms = tp.getClass().getMethods();
         for (Method m : ms) {
@@ -78,7 +80,6 @@ public class MksControl {
 
     public CommandReturn control(String msg) {
         String commandStr = null;
-        //ArrayList<String> args = new ArrayList<String>(10);
         ArrayNode args = null;
         Object retObj = "";
         try {
@@ -121,7 +122,7 @@ public class MksControl {
         Pair<List<Object>, String> rt = new Pair<List<Object>, String>(new ArrayList<Object>(), "");
         int cnt = m.getParameterCount();
         if (cnt < args.size()) {
-            return rt.set(null, String.format("Need more args (%d vs %d)", cnt, args.size()));
+            return rt.set(null, fmt("Need more args (%d vs %d)", cnt, args.size()));
         }
         Class<?>[] types = m.getParameterTypes();
         int i = 0;
@@ -129,30 +130,31 @@ public class MksControl {
         Pair<Object, String> rs;
         for (Class<?> t : types) {
             JsonNode arg = args.get(i);
+            if (arg == null) return rt.set(null, fmt("Input argument #is null.",i))
             if (t.isAssignableFrom(List.class)) {
                 if (!arg.isArray()) {
-                    return rt.set(null, String.format("Argument #%d is array, but input argument is not array.\n"
+                    return rt.set(null, fmt("Argument #%d is array, but input argument is not array.\n"
                             + "Input argument:", i, arg.toString()));
                 }
                 ParameterizedType pt = (ParameterizedType)m.getGenericParameterTypes()[i];
                 Type[] parTypes = pt.getActualTypeArguments();
                 if (parTypes.length != 1) {
                     return rt.set(null,
-                            String.format("Argument #%d: only one generic type allowed\n. Type is %s",
+                            fmt("Argument #%d: only one generic type allowed\n. Type is %s",
                                     i, pt.getTypeName()));
                 }
                 typeName = parTypes[0].getTypeName();
                 List<Object> parArray = new ArrayList<Object>();
                 for (JsonNode e : (ArrayNode)arg) {
                     rs = parseArg(typeName, e);
-                    if (rs.a == null) return rt.set(null, String.format("Argument #%d %s", i, rs.b));
+                    if (rs.a == null) return rt.set(null, fmt("Argument #%d %s", i, rs.b));
                     parArray.add(rs.a);
                 }
                 rt.a.add(parArray);
             } else {
                 typeName = t.getName();
                 rs = parseArg(typeName, arg);
-                if (rs.a == null) return rt.set(null, String.format("Argument #%d %s", i, rs.b));
+                if (rs.a == null) return rt.set(null, fmt("Argument #%d %s", i, rs.b));
                 rt.a.add(rs.a);
             }
             i++;
@@ -165,8 +167,8 @@ public class MksControl {
         Pair<Object, String> rt = new Pair<Object, String>(retObj, "");
         if (arg.isArray() || arg.isObject()) {
             return rt.set(null,
-                    String.format(" input argument for %s is object or array\nInput argument:%s"
-                            ,type,arg.toString()));
+                    fmt(" input argument for %s is object or array\nInput argument:%s"
+                            ,type, arg.toString()));
         }
         String parseMethod = argMap.get(type);
         if (parseMethod == null) return rt.set(null, "no parser for class of "+type);
@@ -181,17 +183,17 @@ public class MksControl {
         case "float" :
             try {rt.a = Double.valueOf(str);}
             catch (Exception e) {
-                return rt.set(null, String.format(" parse error for type %s\nInput argument:%s",type,str));
+                return rt.set(null, fmt(" parse error for type %s\nInput argument:%s",type,str));
             }
             break;
         case "int" :
             try {rt.a = Integer.valueOf(str);}
             catch (Exception e) {
-                return rt.set(null, String.format(" parse error for type %s\nInput argument:%s",type,str));
+                return rt.set(null, fmt(" parse error for type %s\nInput argument:%s",type,str));
             }
             break;
         default :
-            return rt.set(null, String.format(" parse method %s for %s is not implemented.", parseMethod, type));
+            return rt.set(null, fmt(" parse method %s for %s is not implemented.", parseMethod, type));
         }
         return rt;
     }
