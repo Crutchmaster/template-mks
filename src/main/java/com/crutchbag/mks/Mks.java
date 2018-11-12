@@ -71,10 +71,11 @@ public class Mks {
         amqp.convertAndSend(outQueueName, str);
     }
 
-    public String sendAndReceive(String appName, String cmdName, Object... args) {
+    public String sendAndReceive(String appName, String cmdName, Object... cmdArgs) {
         ObjectNode msg = json.createObjectNode();
-        ArrayNode arr = msg.putArray(cmdName);
-        for (Object arg : args) arr.add(arg.toString());
+        msg.put("command", cmdName);
+        ArrayNode args = msg.putArray("args");
+        for (Object arg : cmdArgs) args.add(arg.toString());
         return sendAndReceive(appName + IN_SUFFIX, msg.toString());
     }
 

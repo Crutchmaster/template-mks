@@ -42,6 +42,7 @@ public class MksControl {
     private HashMap<String, String> argMap;
     private ObjectMapper om = new ObjectMapper();
     private Mks mks;
+    private static final String JSON_ERROR_MESSAGE = "Json parsing error. Expected {\"command\":\"<command name>, \"args\" : \"[<arguments>]\"}\n";
 
 
     public MksControl(Mks mks) {
@@ -84,19 +85,24 @@ public class MksControl {
         Object retObj = "";
         try {
             JsonNode in = om.readTree(msg);
-            JsonNode cmdArgs;
-            commandStr = in.fieldNames().next();
-            if ((cmdArgs = in.get(commandStr)).isArray()) {
+            JsonNode cmdArgs = in.get("args");
+            if (cmdArgs==null) {
+                args = om.createArrayNode();
+            } else if (!cmdArgs.isArray() && !cmdArgs.isObject()) {
+                args = om.createArrayNode();
+                args.add(cmdArgs);
+            } else if (cmdArgs.isArray()) {
                 args = (ArrayNode)cmdArgs;
+            }
+            JsonNode commandNode = in.get("command");
+
+            if (commandNode!=null && commandNode.isTextual()) {
+                commandStr = commandNode.asText();
             } else {
-                ret.err("Json parsing error. No array after command key.\n"
-                      + "I want {\"commandName\" : [\"arg\", 1, 0.5,[...]}\n"
-                      + "Input message is:"+msg+"\n");
+                return ret.err(JSON_ERROR_MESSAGE.concat("Input message is:"+msg+"\n"));
             }
         } catch (Exception e) {
-            return ret.err("Json parsing error. "
-                    + "I want {\"commandName\" : [\"arg\", 1, 0.5,[...]}\n"
-                    + "Json is:"+msg);
+            return ret.err(JSON_ERROR_MESSAGE.concat("Input message is:"+msg+"\n"));
         }
 
         Call c = commandsList.get(commandStr);
@@ -130,7 +136,7 @@ public class MksControl {
         Pair<Object, String> rs;
         for (Class<?> t : types) {
             JsonNode arg = args.get(i);
-            if (arg == null) return rt.set(null, fmt("Input argument #is null.",i))
+            if (arg == null) return rt.set(null, fmt("Input argument #is null.",i));
             if (t.isAssignableFrom(List.class)) {
                 if (!arg.isArray()) {
                     return rt.set(null, fmt("Argument #%d is array, but input argument is not array.\n"
