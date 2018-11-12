@@ -22,12 +22,12 @@ public class Mks {
     //public String id = Integer.toHexString((int)(Math.random()*0x1000000));
     private String name;
     private String logQueueName;
-    private String controlQueueIn;
+    private String inQueueName;
     private String outQueueName;
     private ObjectMapper json = new ObjectMapper();
     //private HashMap<String, Object> args;
     private final String LOG_SUFFIX = "_log";
-    private final String IN_SUFFIX = "_control";
+    private final String IN_SUFFIX = "_in";
     private final String OUT_SUFFIX = "_out";
 
     @Autowired
@@ -54,7 +54,7 @@ public class Mks {
     public Mks(@Value("${name}") String appName) {
         this.name = appName;
         this.logQueueName = appName + LOG_SUFFIX;
-        this.controlQueueIn = appName + IN_SUFFIX;
+        this.inQueueName = appName + IN_SUFFIX;
         this.outQueueName = appName + OUT_SUFFIX;
         this.mksControl = new MksControl(this);
         //args = new HashMap<String, Object>();
@@ -86,7 +86,7 @@ public class Mks {
     //public String getId() {return id;}
     public String getName() {return name;}
     public void setLogQueueName(String s) {this.logQueueName = s;}
-    public void setControlQueueName(String s) {this.controlQueueIn = s;}
+    public void setControlQueueName(String s) {this.inQueueName = s;}
     public void setOutQueueName(String s) {this.outQueueName = s;}
 
     @Bean
@@ -129,7 +129,7 @@ public class Mks {
 
     @Bean
     private Queue inputQueue() {
-        return new Queue(controlQueueIn, false, false, false);
+        return new Queue(inQueueName, false, false, false);
     }
 
     @Bean
