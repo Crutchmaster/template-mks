@@ -71,6 +71,7 @@ public class MksControl {
         }
     }
 
+    //TODO return list, move json to Commands.
     public String getCommandList() {
         ObjectNode obj =  om.createObjectNode();
         ArrayNode arr = om.createArrayNode();

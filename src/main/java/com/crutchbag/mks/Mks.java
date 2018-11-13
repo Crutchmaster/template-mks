@@ -34,6 +34,9 @@ public class Mks {
     private RabbitTemplate amqp;
 
     private MksControl mksControl;
+    private Logger listlog;
+
+    public Logger getLogger() {return this.listlog;}
 
     public void log(String str) {
         System.out.println(str);
@@ -59,8 +62,10 @@ public class Mks {
         this.mksControl = new MksControl(this);
         //args = new HashMap<String, Object>();
         //args.put("x-max-length-bytes", new Integer(1024*1024*16)); //16MB
+        listlog = new Logger();
         Commands cmds = new Commands(this);
         this.feed(cmds);
+        this.feed(listlog);
     }
 
     public void sendLog(String str) {
@@ -87,7 +92,7 @@ public class Mks {
     //public String getId() {return id;}
     public String getName() {return name;}
     public void setLogQueueName(String s) {this.logQueueName = s;}
-    public void setControlQueueName(String s) {this.inQueueName = s;}
+    public void setInputQueueName(String s) {this.inQueueName = s;}
     public void setOutQueueName(String s) {this.outQueueName = s;}
 
     @Bean

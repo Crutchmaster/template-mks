@@ -5,9 +5,13 @@ import java.util.List;
 public class Commands {
 
     private Mks mks;
+    private Logger log;
 
     public Commands() {}
-    public Commands(Mks mks) {this.mks = mks;}
+    public Commands(Mks mks) {
+        this.mks = mks;
+        this.log = mks.getLogger();
+    }
 
     public void setApp(Mks a) {mks = a;}
 
@@ -50,6 +54,14 @@ public class Commands {
     public String testList(List<String> t) {
         return fmt("{\"test\" : [\"%s\"]}", t.toString());
     }
+
+    @MQCommand
+    public String testLoggerSpeed(Integer c) {
+        Integer cnt = c;
+        if (cnt < 1) cnt = 1;
+        if (cnt < 1000) cnt = 1000;
+        for (int i = 0; i < cnt; i++) log.info("msg #"+i);
+        return log.getLogAndClear();
     }
 
     @MQCommand
