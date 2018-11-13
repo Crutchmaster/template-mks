@@ -11,54 +11,55 @@ public class Commands {
 
     public void setApp(Mks a) {mks = a;}
 
+    private String fmt(String f, Object... args) {return String.format(f, args);}
+
     @MQCommand
-    public String setControlQueue(String s) {
-        mks.setControlQueueName(s);
-        return "Ok, control queue is "+s+" now.";
+    public String setInputQueue(String s) {
+        mks.setInputQueueName(s);
+        return fmt("{\"setInputQueue\" : \"%s\", \"result\":\"ok\"}", s);
     }
 
     @MQCommand
     public String setLogQueue(String s) {
         mks.setLogQueueName(s);
-        return "Ok, log queue is "+s+" now.";
+        return fmt("{\"setLogQueue\" : \"%s\", \"result\":\"ok\"}", s);
     }
 
     @MQCommand
     public String setOutQueue(String s) {
         mks.setOutQueueName(s);
-        return "Ok, out queue is "+s+ " now.";
+        return fmt("{\"setOutQueue\" : \"%s\", \"result\":\"ok\"}", s);
     }
 
     @MQCommand
     public String test(String a) {
-        return "Run test: arg:"+a;
+        return fmt("{\"test\" : [\"%s\"]}",a);
     }
 
     @MQCommand
     public String test2(String a, String b) {
-        return "Run test2: arg1:"+a+" arg2:"+b;
+        return fmt("{\"test2\" : [\"arg1\",\"arg2\"]}", a, b);
     }
 
     @MQCommand
     public String test3(Integer a, Double b, Boolean c) {
-        return "Run test3: arg1:"+a+" arg2:"+b+" arg3:"+c;
+        return fmt("{\"test3\" : [\"%s\",\"%s\",\"%s\"]}", a.toString(), b.toString(), c.toString());
     }
 
     @MQCommand
     public String testList(List<String> t) {
-        String str = "";
-        for (String s : t) {str += s + ";";}
-        return "Run testList: arg:"+str;
+        return fmt("{\"test\" : [\"%s\"]}", t.toString());
+    }
     }
 
     @MQCommand
     public String ping() {
-        return "pong";
+        return "{\"pong\" : \"ok\"}";
     }
 
     @MQCommand
     public String getName() {
-        return "{\"appName\":\""+mks.getName()+"\"}";
+        return fmt("{\"appName\":\"%s\"}",mks.getName());
     }
 
     @MQCommand
